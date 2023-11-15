@@ -1,4 +1,5 @@
 import numpy
+import random
 from math import comb
 from collections import Counter
 
@@ -21,6 +22,21 @@ def vertexData(V,E):
             deg[v] = deg[v]+1
     #Return the two dicts
     return edgeSet,deg
+
+##
+#Same function as above but only computes degrees
+##
+def degrees(V,E):
+    #Initalize deg
+    deg = {}
+    for v in V:
+        deg[v] = 0
+    #Update deg by iterating through E
+    for e in E:
+        for v in e:
+            deg[v] = deg[v]+1
+    #Return the dict
+    return deg
 
 ##
 #Input: A set (S) of vertices and a dict (deg) of degrees
@@ -93,7 +109,7 @@ def expectedCL(deg,edgePartition):
             for l in edgeSizes:
                 if (k<l):
                     for e in edgePartition[l]:
-                        expected[k][l] = expected[k][l] + numk*((vol(e)/L)**k)
+                        expected[k][l] = expected[k][l] + numk*((vol(e,deg)/L)**k)
     #Return matrix
     return expected
 
@@ -157,7 +173,7 @@ def normalizeMin(numEdges):
 
 ##
 #Input: A set (vertices) of vertices and a list (edges) of edges
-#Output: A matrix M measuring the simpliciality of each k<l pair of edge sizes
+#Output: A matrix M measuring the number of simplicial pairs for each k<l pair of edge sizes
 ##
 def simplicialMatrix(vertices,edges):
     #Organizing data
@@ -186,34 +202,142 @@ def simplicialMatrix(vertices,edges):
                     minv = v
             for f in edgeSet[minv]:
                 lenf = len(f)
-                if (lene<lenf and e.issubset(f)):
+                if (lene<lenf and set(e).issubset(set(f))):
                     M[lene][lenf] = M[lene][lenf] + 1
-    #At this point, M is the matrix of num containment pairs.
-    #Now we apply normalization.
-                    
-    #Options for expected number of containment pairs
-    #################################################
-    expected = expectedER(n,numEdges)
-    #expected = expectedCL(deg,edgePartition)
-    #################################################
-
-    #Options for normalization
-    #################################################
-    #norm = normalizeProd(numEdges)
-    norm = normalizeMax(numEdges)
-    #norm = normalizeMin(numEdges)
-    #################################################
-    
-    for k in edgeSizes:
-        if (k<maxEdgeSize):
-            for l in edgeSizes:
-                if (k<l):
-                    #Options for applying expected and norm
-                    #################################################
-                    M[k][l] = (M[k][l]-expected[k][l])/norm[k][l]
-                    #if (expected[k][l] != 0):
-                    #    M[k][l] = M[k][l]/expected[k][l]
-                    #################################################
-    #Return matrix
+    #M is now the matrix counting containment pairs
     return M
   
+
+##
+#Input: A graph (V,E)
+#Output: A pseudo chung-lu resampling of (V,E)
+##
+def ChungLu(vertices,edges):
+    #Organizing data
+    V = list(vertices)
+    E = edges
+    deg = degrees(V,E)
+    L = vol(V,deg)
+    edgePartition = sortBySize(E)
+    edgeSizes = set(edgePartition.keys())
+
+    #Setting up the choice function
+    #The choice function has vol(V) keys, and deg(v) keys point to vertex v
+    choiceFunction = {}
+    counter = 1
+    index = 0
+    while (counter<=L):
+        for i in range(deg[V[index]]):
+            choiceFunction[counter] = V[index]
+            counter = counter + 1
+        index = index+1
+
+    #newE will be the set of edges in the Chung-Lu graph
+    newE = []
+    edgeToAdd = []
+    for k in edgeSizes:
+        numk = len(edgePartition[k])
+        #Adding all edges of size k
+        for i in range(numk):
+            edgeToAdd = []
+            #Building the edge by rolling a random key from the choice function k times
+            for j in range(k):
+                edgeToAdd.append(choiceFunction[random.randint(1,L)])
+            newE.append(edgeToAdd)
+    return set(V), newE
+
+##
+#Input: A graph (V,E)
+#Output: A pseudo chung-lu resampling of (V,E) with no duplicate edges
+##
+def ChungLu2(vertices,edges):
+    #Organizing data
+    V = list(vertices)
+    E = edges
+    deg = degrees(V,E)
+    L = vol(V,deg)
+    edgePartition = sortBySize(E)
+    edgeSizes = set(edgePartition.keys())
+
+    #Setting up the choice function
+    #The choice function has vol(V) keys, and deg(v) keys point to vertex v
+    choiceFunction = {}
+    counter = 1
+    index = 0
+    while (counter<=L):
+        for i in range(deg[V[index]]):
+            choiceFunction[counter] = V[index]
+            counter = counter + 1
+        index = index+1
+
+    #newE will be the set of edges in the Chung-Lu graph
+    newE = []
+    edgeToAdd = []
+    for k in edgeSizes:
+        numk = len(edgePartition[k])
+        #Adding all edges of size k
+        for i in range(numk):
+            #We try to build an edge until we've built one that hasn't already been build
+            added = False
+            while (not added):
+                edgeToAdd = []
+                for j in range(k):
+                    edgeToAdd.append(choiceFunction[random.randint(1,L)])
+                edgeToAdd = sorted(edgeToAdd)
+                #Only add the edge if it isn't in newE already
+                if (not (edgeToAdd in newE)):
+                    newE.append(edgeToAdd)
+                    added = True
+    return set(V), newE
+
+##
+#Input: A graph (V,E)
+#Output: A pseudo chung-lu resampling of (V,E) with no duplicate edges or multi-sets
+##
+def ChungLu3(vertices,edges):
+    #Organizing data
+    V = list(vertices)
+    E = edges
+    deg = degrees(V,E)
+    L = vol(V,deg)
+    edgePartition = sortBySize(E)
+    edgeSizes = set(edgePartition.keys())
+
+    #Setting up the choice function
+    #The choice function has vol(V) keys, and deg(v) keys point to vertex v
+    choiceFunction = {}
+    counter = 1
+    index = 0
+    while (counter<=L):
+        for i in range(deg[V[index]]):
+            choiceFunction[counter] = V[index]
+            counter = counter + 1
+        index = index+1
+
+    #newE will be the set of edges in the Chung-Lu graph
+    newE = []
+    edgeToAdd = []
+    for k in edgeSizes:
+        numk = len(edgePartition[k])
+        #Adding all edges of size k
+        for i in range(numk):
+            #We try to build an edge until we've built one that hasn't already been build
+            added = False
+            while (not added):
+                edgeToAdd = []
+                for j in range(k):
+                    edgeToAdd.append(choiceFunction[random.randint(1,L)])
+                #len(edgeToAdd) == len(set(edgeToAdd)) is true iff the edge has no duplicates
+                if (len(edgeToAdd) == len(set(edgeToAdd))):
+                    edgeToAdd = sorted(edgeToAdd)
+                    #Only add the edge if it's not already in newE
+                    if (not (edgeToAdd in newE)):
+                        newE.append(edgeToAdd)
+                        added = True
+    return set(V), newE
+                
+        
+
+
+
+        
