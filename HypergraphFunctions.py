@@ -326,7 +326,7 @@ def ChungLu3(vertices,edges):
             while (not added):
                 edgeToAdd = []
                 for j in range(k):
-                    edgeToAdd.append(choiceFunction[random.randint(1,L)])
+                    edgeToAdd.append(choiceFunction[random.randint(1,L)])#check L-1
                 #len(edgeToAdd) == len(set(edgeToAdd)) is true iff the edge has no duplicates
                 if (len(edgeToAdd) == len(set(edgeToAdd))):
                     edgeToAdd = sorted(edgeToAdd)

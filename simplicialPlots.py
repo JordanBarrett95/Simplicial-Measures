@@ -2,13 +2,14 @@ import numpy
 from math import comb
 from collections import Counter
 import matplotlib.pyplot as plt
-from HypergraphFunctions import simplicialMatrix as sM
+from HypergraphFunctions import simplicialMatrix as sM, sortBySize
 from HypergraphFunctions import ChungLu as CL, ChungLu2 as CL2, ChungLu3 as CL3
 
 filenames = {'hospital-lyon',
+             'NDC-substances',
+             'email-eu',
              #'tags-math-sx',
-             #'tags-ask-ubuntu',
-             #'email-eu',
+             #'tags-ask-ubuntu,
              #'email-enron',
              #'contact-primary-school',
              #'contact-high-school'
@@ -35,35 +36,112 @@ for filename in filenames:
     for i in range(Vstart+1,Estart):
         V.add(file[i])
     for i in range(Estart+1,end):
-        if (len(eval(file[i]))<=10):
+        if (len(eval(file[i]))<=5):
             E.append(eval(file[i]))
-        
+
+    ##
+    #Collect data
+    ##
+    edgePartition = sortBySize(E)
+    edgeSizes = set(edgePartition.keys())
+    numEdges = {}
+    for i in edgeSizes:
+        numEdges[i] = len(edgePartition[i])
+    
     ##
     #Getting simplicial matrix
     ##
     M = sM(V,E)
+    length = len(M)
 
+    
     ##
-    #Getting simplicial matrix of 10 Chung-Lu samples
+    #Getting simplicial matrix of 20 Chung-Lu samples
     ##
-    Vcl,Ecl = CL(V,E)
+    Vcl,Ecl = CL3(V,E)
     Mcl = sM(Vcl,Ecl)
-    for i in range(9):
-        Vcl,Ecl = CL(V,E)
+    for i in range(20):
+        Vcl,Ecl = CL3(V,E)
         Madd = sM(Vcl,Ecl)
         for j in range(len(Mcl)):
             for k in range(len(Mcl)):
                 Mcl[j][k] = ((i+1)*Mcl[j][k] + Madd[j][k])/(i+2)
 
-    Mdiv = [row[:] for row in M]
-    for i in range(len(M)):
-        for j in range(len(M)):
+    ##
+    #Method 1: (M-Mcl)/M
+    ##
+    M1 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M1[i][j] = (M[i][j]-Mcl[i][j])/M[i][j]
+
+    ##
+    #Method 2: Normalize by product of number of edges
+    ##
+    M2 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M2[i][j] = (M[i][j]-Mcl[i][j])/(numEdges[i]*numEdges[j])
+
+    ##
+    #Method 3: Normalize by max small per big
+    ##
+    M3 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M3[i][j] = (M[i][j]-Mcl[i][j])/(numEdges[j]*comb(j,i))
+
+    ##
+    #Method 4: Normalize by number of small edges
+    ##
+    M4 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M4[i][j] = (M[i][j]-Mcl[i][j])/(numEdges[i])
+
+    ##
+    #Method 5: Normalize by number of big edges
+    ##
+    M5 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M5[i][j] = (M[i][j]-Mcl[i][j])/(numEdges[j])
+
+    ##
+    #Method 6: +1 and div
+    ##
+    M6 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M6[i][j] = (M[i][j]+1)/(Mcl[i][j]+1)
+
+    ##
+    #Method 7: +epsilon and div
+    ##
+    eps = 2**(-10)
+    M7 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
+            if (M[i][j] != 0):
+                M7[i][j] = (M[i][j]+eps)/(Mcl[i][j]+eps)
+
+    ##
+    #Method 8: div or infinity
+    ##
+    M8 = [row[:] for row in M]
+    for i in edgeSizes:
+        for j in edgeSizes:
             if (Mcl[i][j] != 0):
-                Mdiv[i][j] = M[i][j]/Mcl[i][j]
+                M8[i][j] = M[i][j]/Mcl[i][j]
             elif (M[i][j] != 0):
-                Mdiv[i][j] = -1
-        
-    
+                M8[i][j] = -1
+  
     #################
     ######PLOTS######
     #################
@@ -75,9 +153,10 @@ for filename in filenames:
         if (label != 0):
             plt.text(i,j,round(label,2),ha='center',va='center')
     plt.title('{0} simplicial pairs'.format(filename))
-    #plt.savefig('{0}-simplicial-pairs.png'.format(filename))
-    plt.show()
+    plt.savefig('{0}-simplicial-pairs-new.png'.format(filename))
+    #plt.show()
     plt.close()
+
 
     plt.imshow(Mcl, cmap='cool', interpolation='nearest')
     plt.colorbar()
@@ -85,19 +164,33 @@ for filename in filenames:
         if (label != 0):
             plt.text(i,j,round(label,2),ha='center',va='center')
     plt.title('{0} resampled pairs'.format(filename))
-    #plt.savefig('{0}-resampled-pairs.png'.format(filename))
-    plt.show()
+    plt.savefig('{0}-resampled-pairs-new.png'.format(filename))
+    #plt.show()
     plt.close()
 
-    plt.imshow(Mdiv, cmap='cool', interpolation='nearest')
-    plt.colorbar()
-    for (j,i),label in numpy.ndenumerate(Mdiv):
-        if (label != 0):
-            plt.text(i,j,round(label,2),ha='center',va='center')
-    plt.title('{0}-ratio'.format(filename))
-    #plt.savefig('{0}-ratio.png'.format(filename))
-    plt.show()
-    plt.close()
+
+    methods = {
+        1: M1,
+        2: M2,
+        3: M3,
+        4: M4,
+        5: M5,
+        6: M6,
+        7: M7,
+        8: M8
+    }
+    
+    for n in methods.keys():
+        plt.imshow(methods[n], cmap='cool', interpolation='nearest')
+        plt.colorbar()
+        for (j,i),label in numpy.ndenumerate(methods[n]):
+            if (label != 0):
+                plt.text(i,j,round(label,2),ha='center',va='center')
+        plt.title('{0}-method {1}'.format(filename,n))
+        #plt.savefig('{0}-method {1}.png'.format(filename,n))
+        plt.show()
+        plt.close()
+
 
     '''
     x = []
