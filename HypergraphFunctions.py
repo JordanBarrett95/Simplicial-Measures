@@ -2,6 +2,7 @@ import numpy
 import random
 from math import comb
 from collections import Counter
+from itertools import combinations
 
 
 ##
@@ -336,8 +337,141 @@ def ChungLu3(vertices,edges):
                         added = True
     return set(V), newE
                 
+##
+#Input: An edge e and an integer k
+#Output: List of subsets of e of size at least k
+##
+def kPoSet(e,k):
+    subsets = []
+    toAdd = []
+    for i in range(k,len(e)+1):
+        toAdd = [set(ele) for ele in list(combinations(e,i))]
+        subsets.extend(toAdd)
+    return subsets
+
+##
+#These functions are all from Landry, Young and Eikmier
+##
+def SimplicialFraction(vertices,edges):
+    V = vertices
+    E = []
+    #They ignore 1-edges in their paper, so we throw away 1-edges here
+    for e in edges:
+        if (len(e) > 1):
+            E.append(e)
+    edgeSet,deg = vertexData(V,E)
+
+    #For edge e, relevant edges are edges containing v for each v in e.
+    #Edges to check are all edges in P(e) except singletons and emptyset.
+    relevantEdges = []
+    edgesToCheck = []
+    isSC = True
+    numerator = 0
+    denominator = 0
+    for e in E:
+        #In their paper, the only check edges of size at least 3
+        if (len(e) > 2):
+            denominator = denominator + 1
+            relevantEdges = []
+            isSC = True
+            for v in e:
+                relevantEdges.extend(edgeSet[v])
+            edgesToCheck = kPoSet(e,2)
+            for f in edgesToCheck:
+                if (not (f in relevantEdges)):
+                    isSC = False
+                    break
+            if (isSC):
+                numerator = numerator + 1
+                
+    return numerator/denominator
+            
+
+
+
+def editSimpliciality(vertices,edges):
+    V = vertices
+    E = []
+    #They ignore 1-edges in their paper, so we throw away 1-edges here
+    for e in edges:
+        if (len(e) > 1):
+            E.append(e)
+    edgeSet,deg = vertexData(V,E)
+
+    #Finding the set of maximal edges of size at least 3
+    Emax = []
+    Echeck = []
+    isMaximal = True
+    for e in E:
+        if (len(e)>2):
+            isMaximal = True
+            Echeck = edgeSet[next(iter(e))]
+            Echeck.remove(e)
+            for f in Echeck:
+                if e.issubset(f):
+                    isMaximal = False
+                    break
+            if isMaximal:
+                Emax.append(e)
+
+    numerator = len(E)
+    denominator = 0
+    #C is the set of edges in the simplicial closure.
+    #We start by adding all 2-edges, then add all PoSets of maximal edges
+    C = [e for e in E if len(e) == 2]
+    for e in Emax:
+        edgesToAdd = kPoSet(e,2)
+        for f in edgesToAdd:
+            if (not (f in C)):
+                C.append(f)
+    denominator = len(C)
+
+    return numerator/denominator
+     
+
+def faceEditSimpliciality(vertices,edges):
+    V = vertices
+    E = []
+    #They ignore 1-edges in their paper, so we throw away 1-edges here
+    for e in edges:
+        if (len(e) > 1):
+            E.append(e)
+    edgeSet,deg = vertexData(V,E)
+
+    #Finding the set of maximal edges of size at least 3
+    Emax = []
+    Echeck = []
+    isMaximal = True
+    for e in E:
+        if (len(e)>2):
+            isMaximal = True
+            Echeck = edgeSet[next(iter(e))]
+            Echeck.remove(e)
+            for f in Echeck:
+                if e.issubset(f):
+                    isMaximal = False
+                    break
+            if isMaximal:
+                Emax.append(e)
+
+    relevantEdges = []
+    edgesToCheck = []
+    numSubedges = 0
+    numerator = 0
+    for e in Emax:
+        numSubedges = 0
+        edgesToCheck = []
+        relevantEdges = []
+        for v in e:
+            relevantEdges.extend(edgeSet[v])
+        edgesToCheck = kPoSet(e,2)
+        for e in edgesToCheck:
+            if e in relevantEdges:
+                numSubedges = numSubedges + 1
+        numerator = numerator + numSubedges/len(edgesToCheck)
+
+    denominator = len(Emax)
+    return numerator/denominator
         
-
-
 
         
